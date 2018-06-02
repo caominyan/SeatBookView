@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="Custom_SeatView">
+        <attr name="unselected_seat_drawable" format="integer"></attr>
+        <attr name="selected_seat_drawable" format="integer"></attr>
+        <attr name="selecting_seat_drawable" format="integer"></attr>
+        <attr name="row_space" format="dimension"></attr>
+        <attr name="column_space" format="dimension"></attr>
+    </declare-styleable>
+
+</resources>
