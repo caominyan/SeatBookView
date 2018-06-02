@@ -13,6 +13,7 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -53,14 +54,19 @@ public class SeatView extends View implements SeatViewInterface {
     private int screenWidth;
     private int screenHeight;
 
+    private int leftTextpadding;
     private int leftPadding;
     private int rightPadding;
+    private int bottomPadding;
     private int seatToScreen;
+    private int rowTextWidth;
 
     private String screenTxt;
 
     private Paint screenPait;//绘画大屏幕的画笔
     private Paint screenTextPait;
+    private Paint rowNumPaint;
+    private Paint rowNumBgPaint;
     private Matrix matrix;
     private float scale = 1;
     private float moveX = 0;
@@ -92,7 +98,10 @@ public class SeatView extends View implements SeatViewInterface {
         screenHeight = (int) Util.dip2Px(context, 25);
         leftPadding = (int) Util.dip2Px(context, 45);
         rightPadding = (int) Util.dip2Px(context, 30);
+        bottomPadding = (int) Util.dip2Px(context, 20);
         seatToScreen = (int) Util.dip2Px(context, 20);
+        leftTextpadding = (int) Util.dip2Px(context, 15);
+        rowTextWidth = (int) Util.dip2Px(context, 20);
         typedArray.recycle();
         loadBaseSeatBp(selectedDrawableId, selectingDrawableId, unselectedDrawableId);
         initPaint();
@@ -122,6 +131,12 @@ public class SeatView extends View implements SeatViewInterface {
         screenTextPait = new Paint();
         screenTextPait.setColor(Color.parseColor("#ffffff"));
         screenTextPait.setTextSize(Util.sp2px(getContext(), 10));
+        rowNumPaint = new Paint();
+        rowNumPaint.setColor(Color.parseColor("#000000"));
+        rowNumPaint.setTextSize(Util.sp2px(getContext(), 12));
+        rowNumBgPaint = new Paint();
+        rowNumBgPaint.setColor(Color.parseColor("#3e00ff00"));
+        rowNumBgPaint.setAntiAlias(true);
     }
 
     private void initSeatWidth() {
@@ -219,6 +234,29 @@ public class SeatView extends View implements SeatViewInterface {
     @Override
     public void drawRowNumber(Canvas canvas) {
 
+        int rowSize = mSeatAdapter.getRow_num();//行数
+        int rowPosition = (int) (screenHeight + seatToScreen + moveY);
+        int startRowPosition = rowPosition;
+        RectF rectF = new RectF();
+
+        for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
+            rowPosition += (seatBpHeight * scale + rowSpace * scale);
+        }
+        rectF.set(leftTextpadding, startRowPosition - rowSpace * scale,
+                leftTextpadding + rowTextWidth, rowPosition);
+        canvas.drawRect(rectF, rowNumBgPaint);
+
+
+        rowPosition = (int) (screenHeight + seatToScreen + moveY);
+        for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
+            canvas.drawText(String.valueOf(rowIndex),
+                    leftTextpadding / 2 +(leftTextpadding + rowTextWidth - rowNumPaint.measureText(String.valueOf(rowIndex))) / 2,
+                    getBaseLine(rowNumPaint, rowPosition, rowPosition + seatBpHeight * scale),
+                    rowNumPaint);
+            rowPosition += (seatBpHeight * scale + rowSpace * scale);
+
+        }
+
     }
 
 
@@ -249,12 +287,12 @@ public class SeatView extends View implements SeatViewInterface {
 
                     float moveToY = -1;
                     float moveToX = -1;
-                    if(seatsHeight > visiableHeight){
+                    if (seatsHeight > visiableHeight) {
                         if (top < 0) {
                             if (bottom < 0) {
-                                moveToY = 0f;
+                                moveToY = visiableHeight - seatsHeight - screenHeight - seatToScreen - rightPadding;
                             } else if (bottom >= 0 && bottom <= visiableHeight) {
-                                moveToY = 0f;
+                                moveToY = visiableHeight - seatsHeight - screenHeight - seatToScreen - rightPadding;
                             } else {
                                 //不需要移动
                             }
@@ -267,7 +305,7 @@ public class SeatView extends View implements SeatViewInterface {
                         } else {
                             moveToY = 0f;
                         }
-                    }else{
+                    } else {
                         if (top < 0) {
                             if (bottom < 0) {
                                 moveToY = 0f;
@@ -287,7 +325,7 @@ public class SeatView extends View implements SeatViewInterface {
                         }
                     }
 
-                    if(seatsWidth > visiableWidth){
+                    if (seatsWidth > visiableWidth) {
                         //座位表比屏幕小
                         if (left < 0) {
                             if (right < 0) {
@@ -306,7 +344,7 @@ public class SeatView extends View implements SeatViewInterface {
                         } else {
                             moveToX = 0f;
                         }
-                    }else{
+                    } else {
                         //座位表比屏幕小
                         if (left < 0) {
                             if (right < 0) {
@@ -461,7 +499,7 @@ public class SeatView extends View implements SeatViewInterface {
             Log.e(Tag, "scaleFactor:" + scaleFactor);
             if (lastScale * scaleFactor > 2.5f) {
                 scale = 2.5f;
-            } else if(lastScale * scaleFactor < 0.8){
+            } else if (lastScale * scaleFactor < 0.8) {
                 lastScale = 0.8f;
             } else {
                 scale = lastScale * scaleFactor;
