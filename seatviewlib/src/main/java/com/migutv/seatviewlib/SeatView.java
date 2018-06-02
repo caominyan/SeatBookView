@@ -12,9 +12,10 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.os.Handler;
+import android.os.Message;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -25,6 +26,7 @@ import android.view.View;
 
 import com.migutv.seatviewlib.bean.Seat;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -76,10 +78,14 @@ public class SeatView extends View implements SeatViewInterface {
     private Paint rowNumBgPaint;
     private Paint overViewBgPaint;
     private Paint overviewSeatPaint;
+    private Paint overviewScalePaint;
     private Matrix matrix;
     private float scale = 1;
     private float moveX = 0;
     private float moveY = 0;
+
+    private boolean ifShowOverview = false;
+    private SeatViewHandler mSeatViewHandler = new SeatViewHandler(this);
 
     public SeatView(Context context) {
         super(context);
@@ -156,6 +162,13 @@ public class SeatView extends View implements SeatViewInterface {
         overViewBgPaint.setColor(Color.parseColor("#3e000000"));
         overViewBgPaint.setAntiAlias(true);
         overviewSeatPaint = new Paint();
+
+        overviewScalePaint = new Paint();
+        overviewScalePaint.setAntiAlias(true);
+        overviewScalePaint.setStrokeWidth(2);
+        overviewScalePaint.setStyle(Paint.Style.STROKE);
+        overviewScalePaint.setColor(Color.BLUE);
+
     }
 
     private void initSeatWidth() {
@@ -189,7 +202,10 @@ public class SeatView extends View implements SeatViewInterface {
         drawSeats(canvas);
         drawScreen(canvas);
         drawRowNumber(canvas);
-        drawOverview(canvas);
+        if (ifShowOverview) {
+            drawOverview(canvas);
+        }
+
     }
 
     @Override
@@ -346,7 +362,83 @@ public class SeatView extends View implements SeatViewInterface {
         }
 
 
+        int visiableHeight = getMeasuredHeight();
+        int visiableWidth = getMeasuredWidth();
+        Seat lefttop = mSeatAdapter.getSeatInfo(0, 0);
+        Seat rightBottom = mSeatAdapter.getSeatInfo(mSeatAdapter.getRow_num() - 1
+                , mSeatAdapter.getColumn_num() - 1);
+        float top = lefttop.getmRectF().top;
+        float left = lefttop.getmRectF().left;
+        float right = rightBottom.getmRectF().right;
+        float bottom = rightBottom.getmRectF().bottom;
+
+        float topPercent = 0;
+        float bottomPercent = 0;
+        float leftPercent = 0;
+        float rightPercent = 0;
+
+        if (top < 0) {
+            if (bottom < 0) {
+                topPercent = 0;
+                bottomPercent = 0;
+            } else if (bottom >= 0 && bottom <= visiableHeight) {
+                topPercent = Math.abs(top) / seatsHeight;
+                bottomPercent = 1;
+            } else {
+                topPercent = Math.abs(top) / seatsHeight;
+                bottomPercent = (Math.abs(top) + visiableHeight) / seatsHeight;
+            }
+        } else if (top >= 0 && top <= visiableHeight) {
+            if (bottom >= 0 && bottom <= visiableHeight) {
+                // 座位表上下完全显示
+                topPercent = 0;
+                bottomPercent = 1;
+            } else {
+                topPercent = 0;
+                bottomPercent = (seatsHeight -  Math.abs(bottom) + visiableHeight) / seatsHeight;
+            }
+        } else {
+            //超出底部
+            topPercent = 1;
+            bottomPercent = 1;
+        }
+
+        if (left < 0) {
+            if (right < 0) {
+                leftPercent = 0;
+                rightPercent = 0;
+            } else if (right >= 0 && right <= visiableWidth) {
+                leftPercent = Math.abs(left) / seatsWidth;
+                rightPercent = 1;
+            } else {
+                leftPercent = Math.abs(left) / seatsWidth;
+                rightPercent = (Math.abs(left) + visiableWidth) / seatsWidth;
+            }
+        } else if (left >= 0 && left <= visiableWidth) {
+            if (right >= 0 && right <= visiableWidth) {
+                leftPercent = 0;
+                rightPercent = 1;
+            } else {
+                leftPercent = 0;
+                rightPercent = (seatsWidth - Math.abs(right) + visiableWidth) / seatsWidth;
+            }
+        } else {
+            leftPercent = 1;
+            rightPercent = 1;
+        }
+
+        int rowSize = mSeatAdapter.getRow_num();//行数
+        int columnSize = mSeatAdapter.getColumn_num();//列数
+        int overViewWidth = columnSize * overviewSeatWidth + (columnSize + 1) * overviewSeatColumnSpace;
+        int overViewHeight = rowSize * overviewSeatHeight + (rowSize + 1) * overviewSeatRowSpace;
+
+        RectF rectF = new RectF(leftPadding + overViewWidth * leftPercent,
+                screenHeight + seatToScreen + overViewHeight * topPercent
+                , leftPadding + overViewWidth * rightPercent
+                , screenHeight + seatToScreen + overViewHeight * bottomPercent);
+        canvas.drawRect(rectF, overviewScalePaint);
     }
+
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -361,6 +453,13 @@ public class SeatView extends View implements SeatViewInterface {
 
 
         switch (event.getAction()) {
+
+            case MotionEvent.ACTION_DOWN:
+                mSeatViewHandler.removeMessages(SeatViewHandler.CLOSE_OVERVIEW_EVENT);
+                ifShowOverview = true;
+                postInvalidate();
+                break;
+
             case MotionEvent.ACTION_UP:
                 if (!mutiPointer) {
                     int visiableHeight = getMeasuredHeight();
@@ -452,13 +551,10 @@ public class SeatView extends View implements SeatViewInterface {
                             moveToX = 0f;
                         }
                     }
-
-
                     autoMove(moveToX, moveToY);
-
-
                 }
-
+                mSeatViewHandler.sendMessageDelayed(mSeatViewHandler.obtainMessage(SeatViewHandler.CLOSE_OVERVIEW_EVENT)
+                        , 1500l);
                 break;
         }
 
@@ -618,4 +714,31 @@ public class SeatView extends View implements SeatViewInterface {
 
         }
     });
+
+
+    static class SeatViewHandler extends Handler {
+
+        public static final int CLOSE_OVERVIEW_EVENT = 1;
+
+        private WeakReference<SeatView> mWeakReference;
+
+        public SeatViewHandler(SeatView seatView) {
+            this.mWeakReference = new WeakReference<SeatView>(seatView);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case CLOSE_OVERVIEW_EVENT:
+                    if (mWeakReference != null && mWeakReference.get() != null) {
+                        mWeakReference.get().ifShowOverview = false;
+                        mWeakReference.get().postInvalidate();
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+
 }
