@@ -12,6 +12,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.PorterDuff;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.support.annotation.Nullable;
@@ -61,12 +62,20 @@ public class SeatView extends View implements SeatViewInterface {
     private int seatToScreen;
     private int rowTextWidth;
 
+
+    private int overviewSeatWidth;
+    private int overviewSeatHeight;
+    private int overviewSeatRowSpace;
+    private int overviewSeatColumnSpace;
+
     private String screenTxt;
 
     private Paint screenPait;//绘画大屏幕的画笔
     private Paint screenTextPait;
     private Paint rowNumPaint;
     private Paint rowNumBgPaint;
+    private Paint overViewBgPaint;
+    private Paint overviewSeatPaint;
     private Matrix matrix;
     private float scale = 1;
     private float moveX = 0;
@@ -102,6 +111,12 @@ public class SeatView extends View implements SeatViewInterface {
         seatToScreen = (int) Util.dip2Px(context, 20);
         leftTextpadding = (int) Util.dip2Px(context, 15);
         rowTextWidth = (int) Util.dip2Px(context, 20);
+
+        overviewSeatWidth = (int) Util.dip2Px(context, 4);
+        overviewSeatHeight = (int) Util.dip2Px(context, 4);
+        overviewSeatRowSpace = (int) Util.dip2Px(context, 4);
+        overviewSeatColumnSpace = (int) Util.dip2Px(context, 2);
+
         typedArray.recycle();
         loadBaseSeatBp(selectedDrawableId, selectingDrawableId, unselectedDrawableId);
         initPaint();
@@ -127,7 +142,7 @@ public class SeatView extends View implements SeatViewInterface {
 
     private void initPaint() {
         screenPait = new Paint();
-        screenPait.setColor(Color.parseColor("#000000"));
+        screenPait.setColor(Color.parseColor("#cccccc"));
         screenTextPait = new Paint();
         screenTextPait.setColor(Color.parseColor("#ffffff"));
         screenTextPait.setTextSize(Util.sp2px(getContext(), 10));
@@ -137,6 +152,10 @@ public class SeatView extends View implements SeatViewInterface {
         rowNumBgPaint = new Paint();
         rowNumBgPaint.setColor(Color.parseColor("#3e00ff00"));
         rowNumBgPaint.setAntiAlias(true);
+        overViewBgPaint = new Paint();
+        overViewBgPaint.setColor(Color.parseColor("#3e000000"));
+        overViewBgPaint.setAntiAlias(true);
+        overviewSeatPaint = new Paint();
     }
 
     private void initSeatWidth() {
@@ -170,6 +189,7 @@ public class SeatView extends View implements SeatViewInterface {
         drawSeats(canvas);
         drawScreen(canvas);
         drawRowNumber(canvas);
+        drawOverview(canvas);
     }
 
     @Override
@@ -250,7 +270,7 @@ public class SeatView extends View implements SeatViewInterface {
         rowPosition = (int) (screenHeight + seatToScreen + moveY);
         for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
             canvas.drawText(String.valueOf(rowIndex),
-                    leftTextpadding / 2 +(leftTextpadding + rowTextWidth - rowNumPaint.measureText(String.valueOf(rowIndex))) / 2,
+                    leftTextpadding / 2 + (leftTextpadding + rowTextWidth - rowNumPaint.measureText(String.valueOf(rowIndex))) / 2,
                     getBaseLine(rowNumPaint, rowPosition, rowPosition + seatBpHeight * scale),
                     rowNumPaint);
             rowPosition += (seatBpHeight * scale + rowSpace * scale);
@@ -259,6 +279,74 @@ public class SeatView extends View implements SeatViewInterface {
 
     }
 
+    private boolean needDrawoverviewBitmap = true;
+    Bitmap overviewBitmap;
+
+    private void drawOverviewBitmap() {
+
+        int rowSize = mSeatAdapter.getRow_num();//行数
+        int columnSize = mSeatAdapter.getColumn_num();//列数
+
+        int overViewWidth = columnSize * overviewSeatWidth + (columnSize + 1) * overviewSeatColumnSpace;
+        int overViewHeight = rowSize * overviewSeatHeight + (rowSize + 1) * overviewSeatRowSpace;
+        overviewBitmap = Bitmap.createBitmap(overViewWidth, overViewHeight, Bitmap.Config.ARGB_8888);
+        Canvas bitmapCanvas = new Canvas(overviewBitmap);
+        bitmapCanvas.drawColor(Color.parseColor("#33000000"));
+
+
+        int rowPosition = overviewSeatRowSpace;
+        for (int rowIndex = 0; rowIndex < rowSize; rowIndex++) {
+            int columnPosition = overviewSeatColumnSpace;
+            for (int columnIndex = 0; columnIndex < columnSize; columnIndex++) {
+                if (mSeatAdapter.getSeatInfo(rowIndex, columnIndex).getType() == Seat.Position.CHANNEL) {
+                    //是走廊
+                    columnPosition += (overviewSeatWidth + overviewSeatColumnSpace);
+                } else {
+                    Seat seat = mSeatAdapter.getSeatInfo(rowIndex, columnIndex);
+                    RectF rectF = new RectF();
+                    rectF.set(columnPosition, rowPosition,
+                            columnPosition + overviewSeatWidth, rowPosition + overviewSeatHeight);
+
+                    if (seat.getSeatBookType() == Seat.SeatStatus.UNBOOK) {
+                        //未被选择
+                        overviewSeatPaint.setColor(Color.GRAY);
+                    } else if (seat.getSeatBookType() == Seat.SeatStatus.BOOKED) {
+                        //已被选择
+                        overviewSeatPaint.setColor(Color.RED);
+                    } else {
+                        //正在被选择的
+                        overviewSeatPaint.setColor(Color.GREEN);
+                    }
+                    bitmapCanvas.drawRect(rectF, overviewSeatPaint);
+                    columnPosition += (overviewSeatWidth + overviewSeatColumnSpace);
+                }
+            }
+            rowPosition += (overviewSeatHeight + overviewSeatRowSpace);
+        }
+
+
+    }
+
+    @Override
+    public void drawOverview(Canvas canvas) {
+
+        if (needDrawoverviewBitmap) {
+            //重新绘画预览图
+
+            if (overviewBitmap != null) {
+                overviewBitmap.recycle();
+            }
+            drawOverviewBitmap();
+            needDrawoverviewBitmap = false;
+        }
+
+        //绘画预览图
+        if (overviewBitmap != null) {
+            canvas.drawBitmap(overviewBitmap, leftPadding, screenHeight + seatToScreen, null);
+        }
+
+
+    }
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -459,8 +547,10 @@ public class SeatView extends View implements SeatViewInterface {
             if (seat != null && seat.getSeatBookType() != Seat.SeatStatus.BOOKED) {
                 if (seat.getSeatBookType() == Seat.SeatStatus.BOOKING) {
                     seat.setSeatBookType(Seat.SeatStatus.UNBOOK);
+                    needDrawoverviewBitmap = true;
                 } else {
                     seat.setSeatBookType(Seat.SeatStatus.BOOKING);
+                    needDrawoverviewBitmap = true;
                 }
             }
 

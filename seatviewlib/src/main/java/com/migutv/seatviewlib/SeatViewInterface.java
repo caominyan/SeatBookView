@@ -18,4 +18,6 @@ public interface SeatViewInterface {
 
     void drawRowNumber(Canvas canvas);
 
+    void drawOverview(Canvas canvas);
+
 }
