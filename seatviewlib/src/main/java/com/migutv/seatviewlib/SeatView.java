@@ -21,6 +21,8 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
 
+import com.migutv.seatviewlib.bean.Seat;
+
 import java.util.ArrayList;
 import java.util.Collection;
 

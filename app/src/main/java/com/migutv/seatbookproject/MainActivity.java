@@ -3,7 +3,7 @@ package com.migutv.seatbookproject;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 
-import com.migutv.seatviewlib.Seat;
+import com.migutv.seatviewlib.bean.Seat;
 import com.migutv.seatviewlib.SeatAdapter;
 import com.migutv.seatviewlib.SeatView;
 

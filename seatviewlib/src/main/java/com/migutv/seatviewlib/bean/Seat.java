@@ -1,4 +1,4 @@
-package com.migutv.seatviewlib;
+package com.migutv.seatviewlib.bean;
 
 import android.graphics.RectF;
 
@@ -23,6 +23,9 @@ public class Seat {
 
     private int column;
 
+    /**
+     * 座位在canvas的位置
+     */
     private RectF mRectF = new RectF();
 
     private Position type = Position.SEAT;

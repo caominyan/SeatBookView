@@ -1,5 +1,7 @@
 package com.migutv.seatviewlib;
 
+import com.migutv.seatviewlib.bean.Seat;
+
 /**
  * Created by caominyan on 2018/5/31.
  */
